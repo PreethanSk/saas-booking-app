@@ -6,7 +6,7 @@ import { PrismaClient } from "../../generated/prisma";
 import { JWT_KEY } from "../utils/config";
 import cookieParser from "cookie-parser";
 import { CREATOR_SECRET } from "../utils/config";
-import { superAdminSignUpSchema, adminSigninSchema, branchCreateSchema } from "../utils/zod";
+import { superAdminSignUpSchema, adminSigninSchema, branchCreateSchema, forgotPasswordSchema } from "../utils/zod";
 import { superAdminMiddleware } from "../middlewares/middleware";
 
 const app = express();
@@ -96,6 +96,62 @@ adminRouter.post("/signin", async(req,res) => {
     }
 })
 
+adminRouter.post("/updateProfile", superAdminMiddleware, async(req,res) => {
+    try{
+        const {username, email, password, picture} = req.body;
+        //@ts-ignore
+        const userId = req.id;
+
+        const updateData: any = {};
+        if (username) updateData.username = username;
+        if (email) updateData.email = email;
+        if (picture) updateData.picture = picture;
+        if (password) {
+            updateData.password = await bcrypt.hash(password, 5);
+        }
+        await client.superAdmin.update({where: {id: userId}, data: updateData});
+        res.status(200).json({message: "Profile updated successfully"});
+    }
+    catch(error){
+        console.log(error);
+        res.status(500).json({message:"Server crash updateprofile endpoint"})
+    }
+})
+
+// ADD EMAIL VALIDATION LATER
+adminRouter.put("/forgotPassword",  async(req,res) => {
+    try{
+        const {username, secretKey, newPassword} = req.body;
+
+        const zodParse = forgotPasswordSchema.safeParse(req.body);
+        if(!zodParse.success){
+            res.status(403).json({message:"zod invalid", errors: zodParse.error.errors});
+            return
+        }
+
+        const userCheck = await client.superAdmin.findFirst({where: {username: username}});
+        if(!userCheck){
+            res.status(403).json({message:"user not found"});
+            return
+        }
+        if(secretKey === CREATOR_SECRET){
+            const passwordHash = await bcrypt.hash(newPassword, 5)
+            await client.superAdmin.update({where: {username: username}, data: {password: passwordHash}});
+            res.status(201).json({message:"password updated successfully"});
+            return
+        }
+        else{
+            res.status(403).json({message:"invalid key"});
+            return
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.status(500).json({message:"Server crash at superadmin forgot password"})
+    }
+})
+
+
 
 adminRouter.post("/createBranch", superAdminMiddleware, async(req,res) => {
     try{
@@ -121,6 +177,6 @@ adminRouter.post("/createBranch", superAdminMiddleware, async(req,res) => {
     }
 } )
 
-
+// adminRouter.put("/updateBranch")
 
 export default adminRouter;
