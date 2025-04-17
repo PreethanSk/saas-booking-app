@@ -18,7 +18,6 @@ import {
 import { superAdminMiddleware } from "../middlewares/middleware";
 import crypto from "crypto";
 
-
 const app = express();
 const adminRouter = Router();
 const client = new PrismaClient();
@@ -111,7 +110,7 @@ adminRouter.post("/signin", async (req, res) => {
   }
 });
 
-adminRouter.post("/updateProfile", superAdminMiddleware, async (req, res) => {
+adminRouter.put("/updateProfile", superAdminMiddleware, async (req, res) => {
   try {
     const { username, email, password, picture } = req.body;
     //@ts-ignore
@@ -209,7 +208,7 @@ adminRouter.post("/createBranch", superAdminMiddleware, async (req, res) => {
   }
 });
 
-adminRouter.post("/updateBranch", superAdminMiddleware, async (req, res) => {
+adminRouter.put("/updateBranch", superAdminMiddleware, async (req, res) => {
   try {
     const { branchId, ...branchData } = req.body;
     if (!branchId) {
@@ -250,7 +249,7 @@ adminRouter.post("/updateBranch", superAdminMiddleware, async (req, res) => {
   }
 });
 
-adminRouter.post("/deleteBranch", superAdminMiddleware, async (req, res) => {
+adminRouter.delete("/deleteBranch", superAdminMiddleware, async (req, res) => {
   try {
     const { branchId } = req.body;
     if (!branchId) {
@@ -295,9 +294,16 @@ adminRouter.post("/createManager", superAdminMiddleware, async (req, res) => {
       return;
     }
 
+    // Check if branch exists before creating manager
+    const branch = await client.branch.findUnique({ where: { id: branchId } });
+    if (!branch) {
+      res.status(400).json({ message: "Branch does not exist" });
+      return;
+    }
+
     const userCheck = await client.franchiseManager.findFirst({
       where: {
-        OR: [{ username: username }, { email: email }],
+        OR: [{ username: username }, { email: email }, {branchId: branchId}],
       },
     });
     if (userCheck) {
@@ -332,7 +338,7 @@ adminRouter.get("/managerNames", superAdminMiddleware, async (req, res) => {
   }
 });
 
-adminRouter.post("/deleteManager", superAdminMiddleware, async (req, res) => {
+adminRouter.delete("/deleteManager", superAdminMiddleware, async (req, res) => {
   try {
     const { managerId } = req.body;
     if (!managerId) {
@@ -354,7 +360,7 @@ adminRouter.post("/deleteManager", superAdminMiddleware, async (req, res) => {
   }
 });
 
-// can search for individual names too allows half ass inputs, add button to view in detail 
+// can search for individual names too allows half ass inputs, add button to view in detail
 adminRouter.get("/getBranchesGrid", superAdminMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -414,7 +420,7 @@ adminRouter.get("/getBranchDetail", superAdminMiddleware, async (req, res) => {
   }
 });
 
-// can search for individual names too allows half ass inputs, add button to view in detail 
+// can search for individual names too allows half ass inputs, add button to view in detail
 adminRouter.get("/getManagersGrid", superAdminMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -453,7 +459,7 @@ adminRouter.get("/getManagersGrid", superAdminMiddleware, async (req, res) => {
 });
 
 // button from grid list should redirect here
-adminRouter.get("/getMangerDetail", superAdminMiddleware, async (req, res) => {
+adminRouter.get("/getManagerDetail", superAdminMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.query.id as string);
     if (!id) {

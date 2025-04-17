@@ -47,7 +47,7 @@ export const superAdminUpdateSchema = z.object({
 
 export const  forgotPasswordSchema = z.object({
  username: z.string(),
- secretKey: z.string(),
+ passwordKey: z.string(),
   newPassword:  z
   .string()
   .min(8, { message: "Password must be at least 8 characters long" })
@@ -82,7 +82,7 @@ export const branchUpdateSchema = z.object({
   state: z.string().optional(),
   country: z.string().optional(),
   picture: z.string().optional(),
-  id: z.number()
+  branchId: z.number()
 })
 
 
