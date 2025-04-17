@@ -17,15 +17,15 @@ import {
 } from "../utils/zod";
 import { superAdminMiddleware } from "../middlewares/middleware";
 import crypto from "crypto";
-import { PrismaClientKnownRequestError } from "../../generated/prisma/runtime/library";
+
 
 const app = express();
 const adminRouter = Router();
 const client = new PrismaClient();
 const JWT_SECRET = JWT_KEY || "default-key";
 
-app.use(cookieParser());
-app.use(cors());
+// app.use(cookieParser());
+// app.use(cors());
 app.use(express.json());
 
 adminRouter.post("/signup", async (req, res) => {
@@ -269,6 +269,8 @@ adminRouter.post("/deleteBranch", superAdminMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server crash in deleteBranch endpoint" });
   }
 });
+
+// for dropdown menu
 adminRouter.get("/branchNames", superAdminMiddleware, async (req, res) => {
   try {
     const branches = await client.branch.findMany({
@@ -317,6 +319,7 @@ adminRouter.post("/createManager", superAdminMiddleware, async (req, res) => {
   }
 });
 
+//for dropdown menu
 adminRouter.get("/managerNames", superAdminMiddleware, async (req, res) => {
   try {
     const managers = await client.franchiseManager.findMany({
@@ -351,6 +354,7 @@ adminRouter.post("/deleteManager", superAdminMiddleware, async (req, res) => {
   }
 });
 
+// can search for individual names too allows half ass inputs, add button to view in detail 
 adminRouter.get("/getBranchesGrid", superAdminMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -388,6 +392,7 @@ adminRouter.get("/getBranchesGrid", superAdminMiddleware, async (req, res) => {
   }
 });
 
+// button from grid list should redirect here
 adminRouter.get("/getBranchDetail", superAdminMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.query.id as string);
@@ -409,6 +414,7 @@ adminRouter.get("/getBranchDetail", superAdminMiddleware, async (req, res) => {
   }
 });
 
+// can search for individual names too allows half ass inputs, add button to view in detail 
 adminRouter.get("/getManagersGrid", superAdminMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -446,6 +452,7 @@ adminRouter.get("/getManagersGrid", superAdminMiddleware, async (req, res) => {
   }
 });
 
+// button from grid list should redirect here
 adminRouter.get("/getMangerDetail", superAdminMiddleware, async (req, res) => {
   try {
     const id = parseInt(req.query.id as string);
