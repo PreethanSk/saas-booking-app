@@ -25,6 +25,26 @@ export const adminSigninSchema = z.object({
   password: z.string()
 })
 
+export const superAdminUpdateSchema = z.object({
+  username: z.string().min(5).optional(),
+  email: z.string().email().optional(),
+  password: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters long" })
+    .max(32, { message: "Password must be at most 32 characters long" })
+    .regex(/[A-Z]/, {
+      message: "Password must contain at least one uppercase letter",
+    })
+    .regex(/[a-z]/, {
+      message: "Password must contain at least one lowercase letter",
+    })
+    .regex(/[0-9]/, { message: "Password must contain at least one number" })
+    .regex(/[^A-Za-z0-9]/, {
+      message: "Password must contain at least one special character",
+    }).optional(),
+    picture: z.string().optional()
+});
+
 export const  forgotPasswordSchema = z.object({
  username: z.string(),
  secretKey: z.string(),
@@ -52,4 +72,22 @@ export const branchCreateSchema = z.object({
   state: z.string(),
   country: z.string(),
   picture: z.string().optional()
+})
+
+export const branchUpdateSchema = z.object({
+  name: z.string().optional(),
+  address: z.string().optional(),
+  pincode: z.number().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  picture: z.string().optional(),
+  id: z.number()
+})
+
+
+export const franchiseMangerCreateSchema = z.object({
+  email: z.string().email(),
+  username: z.string(),
+  branchId: z.number()
 })

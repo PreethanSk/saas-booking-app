@@ -35,11 +35,13 @@ model Branch {
 
 model FranchiseManager {
   id          Int      @id @default(autoincrement())
-  name        String
+  name        String?
   email       String   @unique
+  username String @unique
   password    String
-  phoneNumber String
+  phoneNumber String?
   picture     String? // URL or path to manager picture
+  passwordKey String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -50,11 +52,13 @@ model FranchiseManager {
 
 model Staff {
   id          Int      @id @default(autoincrement())
-  name        String
-  phoneNumber String   @unique
-  email       String   @unique
+  name        String?
+  phoneNumber String?   @unique
+  email       String?   @unique
+  username String @unique
   password    String
   picture     String? // URL or path to staff picture
+  passwordKey String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -121,6 +125,7 @@ model SuperAdmin {
   email     String   @unique
   password  String
   picture   String? // URL or path to superadmin picture
+  passwordKey String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

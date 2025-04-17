@@ -6,8 +6,18 @@ import { PrismaClient } from "../../generated/prisma";
 import { JWT_KEY } from "../utils/config";
 import cookieParser from "cookie-parser";
 import { CREATOR_SECRET } from "../utils/config";
-import { superAdminSignUpSchema, adminSigninSchema, branchCreateSchema, forgotPasswordSchema } from "../utils/zod";
+import {
+  superAdminSignUpSchema,
+  adminSigninSchema,
+  branchCreateSchema,
+  forgotPasswordSchema,
+  superAdminUpdateSchema,
+  branchUpdateSchema,
+  franchiseMangerCreateSchema,
+} from "../utils/zod";
 import { superAdminMiddleware } from "../middlewares/middleware";
+import crypto from "crypto";
+import { PrismaClientKnownRequestError } from "../../generated/prisma/runtime/library";
 
 const app = express();
 const adminRouter = Router();
@@ -21,162 +31,324 @@ app.use(express.json());
 adminRouter.post("/signup", async (req, res) => {
   try {
     const { username, email, password, secretKey, picture } = req.body;
-    
-    if(secretKey !== CREATOR_SECRET){
-        res.status(403).json({message:"invalid key"});
-        return
+
+    if (secretKey !== CREATOR_SECRET) {
+      res.status(403).json({ message: "invalid key" });
+      return;
     }
-    
+
     const zodParse = superAdminSignUpSchema.safeParse(req.body);
     if (!zodParse.success) {
-      res.status(403).json({message: "Validation failed", errors: zodParse.error.errors,});
+      res
+        .status(403)
+        .json({ message: "Validation failed", errors: zodParse.error.errors });
       return;
     }
 
     const userCheck = await client.superAdmin.findFirst({
       where: {
-        OR: [
-          { username: username },
-          { email: email }
-        ]
-      }
+        OR: [{ username: username }, { email: email }],
+      },
     });
     if (userCheck) {
-      res.status(403).json({ message: "User with this username or email already exists" });
+      res
+        .status(403)
+        .json({ message: "User with this username or email already exists" });
       return;
     }
-
+    const key = crypto.randomBytes(8).toString("base64").slice(0, 10);
     const hashPassword = await bcrypt.hash(password, 5);
     await client.superAdmin.create({
-        data:{
-            username,
-            email,
-            password:hashPassword,
-            picture
-        }
-    })
-    res.json({message:"user created successfully!!"})
-
+      data: {
+        username,
+        email,
+        password: hashPassword,
+        picture,
+        passwordKey: key,
+      },
+    });
+    res.json({ message: "user created successfully!!", passwordKey: key });
   } catch (error) {
     console.log(error);
     res.status(403).json({
-        message: "server crashed in superAdmin signup endpoint endpoint",
-      });
+      message: "server crashed in superAdmin signup endpoint endpoint",
+    });
   }
 });
 
-
-
-adminRouter.post("/signin", async(req,res) => {
-    try{
-        const {username, password} = req.body;
-        const zodParse = adminSigninSchema.safeParse(req.body);
-        if(!zodParse.success){
-            res.status(403).json({message:"zod error", errors: zodParse.error.errors});
-            return
-        }
-        
-        const userCheck = await client.superAdmin.findUnique({where: {username}});
-        if(!userCheck){
-            res.status(403).json({message:"invalid username or password "});
-            return
-        }
-        const passwordDecrypt = await bcrypt.compare(password, userCheck.password);
-        if(!passwordDecrypt){
-            res.status(403).json({message:"invalid username or password"});
-            return
-        }
-        const token = jwt.sign({id: userCheck.id, role: "super-admin"}, JWT_SECRET);
-        res.cookie("token", token, {httpOnly: true});
-        res.json({message:"signin successful"});
+adminRouter.post("/signin", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const zodParse = adminSigninSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
     }
-    catch(error){
-        console.log(error);
-        res.status(500).json({message:"server crash in superadmin signin"})
-    }
-})
 
-adminRouter.post("/updateProfile", superAdminMiddleware, async(req,res) => {
-    try{
-        const {username, email, password, picture} = req.body;
-        //@ts-ignore
-        const userId = req.id;
+    const userCheck = await client.superAdmin.findUnique({
+      where: { username },
+    });
+    if (!userCheck) {
+      res.status(403).json({ message: "invalid username or password " });
+      return;
+    }
+    const passwordDecrypt = await bcrypt.compare(password, userCheck.password);
+    if (!passwordDecrypt) {
+      res.status(403).json({ message: "invalid username or password" });
+      return;
+    }
+    const token = jwt.sign(
+      { id: userCheck.id, role: "super-admin" },
+      JWT_SECRET
+    );
+    res.cookie("token", token, { httpOnly: true });
+    res.json({ message: "signin successful" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "server crash in superadmin signin" });
+  }
+});
 
-        const updateData: any = {};
-        if (username) updateData.username = username;
-        if (email) updateData.email = email;
-        if (picture) updateData.picture = picture;
-        if (password) {
-            updateData.password = await bcrypt.hash(password, 5);
-        }
-        await client.superAdmin.update({where: {id: userId}, data: updateData});
-        res.status(200).json({message: "Profile updated successfully"});
+adminRouter.post("/updateProfile", superAdminMiddleware, async (req, res) => {
+  try {
+    const { username, email, password, picture } = req.body;
+    //@ts-ignore
+    const userId = req.id;
+
+    const zodParse = superAdminUpdateSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
     }
-    catch(error){
-        console.log(error);
-        res.status(500).json({message:"Server crash updateprofile endpoint"})
+
+    const updateData: any = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (picture) updateData.picture = picture;
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 5);
     }
-})
+    await client.superAdmin.update({ where: { id: userId }, data: updateData });
+    res.status(200).json({ message: "Profile updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash updateprofile endpoint" });
+  }
+});
 
 // ADD EMAIL VALIDATION LATER
-adminRouter.put("/forgotPassword",  async(req,res) => {
-    try{
-        const {username, secretKey, newPassword} = req.body;
+adminRouter.put("/forgotPassword", async (req, res) => {
+  try {
+    const { username, passwordKey, newPassword } = req.body;
 
-        const zodParse = forgotPasswordSchema.safeParse(req.body);
-        if(!zodParse.success){
-            res.status(403).json({message:"zod invalid", errors: zodParse.error.errors});
-            return
-        }
-
-        const userCheck = await client.superAdmin.findFirst({where: {username: username}});
-        if(!userCheck){
-            res.status(403).json({message:"user not found"});
-            return
-        }
-        if(secretKey === CREATOR_SECRET){
-            const passwordHash = await bcrypt.hash(newPassword, 5)
-            await client.superAdmin.update({where: {username: username}, data: {password: passwordHash}});
-            res.status(201).json({message:"password updated successfully"});
-            return
-        }
-        else{
-            res.status(403).json({message:"invalid key"});
-            return
-        }
+    const zodParse = forgotPasswordSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod invalid", errors: zodParse.error.errors });
+      return;
     }
-    catch(error){
-        console.log(error);
-        res.status(500).json({message:"Server crash at superadmin forgot password"})
+
+    const userCheck = await client.superAdmin.findFirst({
+      where: { username: username },
+    });
+    if (!userCheck) {
+      res.status(403).json({ message: "user not found" });
+      return;
     }
-})
-
-
-
-adminRouter.post("/createBranch", superAdminMiddleware, async(req,res) => {
-    try{
-        const {name, address, pincode, city, state, country, picture} = req.body;
-        
-        const zodParse = branchCreateSchema.safeParse(req.body);
-        if(!zodParse.success){
-            res.status(403).json({message:"zod error", errors: zodParse.error.errors});
-            return
-        }
-
-        const branchCheck = await client.branch.findFirst({where: {name: name}});
-        if(branchCheck){
-            res.status(403).json({message:"this branch already exists"});
-            return
-        }
-        await client.branch.create({data: {name, address, pincode, city, state, country, picture}});
-        res.status(201).json({message:"branch created successfully"})
+    if (passwordKey === userCheck.passwordKey) {
+      const passwordHash = await bcrypt.hash(newPassword, 5);
+      await client.superAdmin.update({
+        where: { username: username },
+        data: { password: passwordHash },
+      });
+      res.status(201).json({ message: "password updated successfully" });
+      return;
+    } else {
+      res.status(403).json({ message: "invalid key" });
+      return;
     }
-    catch(error){
-        console.log(error);
-        res.status(500).json({message:"server crash in create branch endpoint"})
-    }
-} )
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "Server crash at superadmin forgot password" });
+  }
+});
 
-// adminRouter.put("/updateBranch")
+adminRouter.post("/createBranch", superAdminMiddleware, async (req, res) => {
+  try {
+    const { name, address, pincode, city, state, country, picture } = req.body;
+
+    const zodParse = branchCreateSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
+    }
+
+    const branchCheck = await client.branch.findFirst({
+      where: { name: name },
+    });
+    if (branchCheck) {
+      res.status(403).json({ message: "this branch already exists" });
+      return;
+    }
+    await client.branch.create({
+      data: { name, address, pincode, city, state, country, picture },
+    });
+    res.status(201).json({ message: "branch created successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "server crash in create branch endpoint" });
+  }
+});
+
+adminRouter.post("/updateBranch", superAdminMiddleware, async (req, res) => {
+  try {
+    const { branchId, ...branchData } = req.body;
+    if (!branchId) {
+      res.status(400).json({ message: "branchId is required" });
+      return;
+    }
+    // Validate only the provided fields
+    const zodParse = branchCreateSchema.partial().safeParse(branchData);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
+    }
+    // Check if branch exists
+    const branch = await client.branch.findUnique({ where: { id: branchId } });
+    if (!branch) {
+      res.status(404).json({ message: "Branch not found" });
+      return;
+    }
+    // Only update provided fields
+    const updateData: any = {};
+    for (const key of Object.keys(zodParse.data)) {
+      if (branchData[key] !== undefined) {
+        updateData[key] = branchData[key];
+      }
+    }
+    const updatedBranch = await client.branch.update({
+      where: { id: branchId },
+      data: updateData,
+    });
+    res
+      .status(200)
+      .json({ message: "Branch updated successfully", branch: updatedBranch });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in updateBranch endpoint" });
+  }
+});
+
+adminRouter.post("/deleteBranch", superAdminMiddleware, async (req, res) => {
+  try {
+    const { branchId } = req.body;
+    if (!branchId) {
+      res.status(400).json({ message: "branchId is required" });
+      return;
+    }
+    const branch = await client.branch.findUnique({ where: { id: branchId } });
+    if (!branch) {
+      res.status(404).json({ message: "Branch not found" });
+      return;
+    }
+    await client.branch.delete({ where: { id: branchId } });
+    res.status(200).json({ message: "Branch deleted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in deleteBranch endpoint" });
+  }
+});
+adminRouter.get("/branchNames", superAdminMiddleware, async (req, res) => {
+  try {
+    const branches = await client.branch.findMany({
+      select: { id: true, name: true },
+    });
+    res.status(200).json({ branches });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in get branches endpoint" });
+  }
+});
+
+// manager will later give input for password, name, ph number etc
+adminRouter.post("/createManager", superAdminMiddleware, async (req, res) => {
+  try {
+    const { email, username, branchId } = req.body;
+    const zodParse = franchiseMangerCreateSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
+    }
+
+    const userCheck = await client.franchiseManager.findFirst({
+      where: {
+        OR: [{ username: username }, { email: email }],
+      },
+    });
+    if (userCheck) {
+      res.status(403).json({ message: "user already exists" });
+      return;
+    }
+
+    const key = crypto.randomBytes(8).toString("base64").slice(0, 10);
+    await client.franchiseManager.create({
+      data: { email, username, passwordKey: key, password: key, branchId },
+    });
+
+    res.status(201).json({ message: "manager created!", key: key });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ messagE: "server crash in manager create endpoint" });
+  }
+});
+
+adminRouter.get("/managerNames", superAdminMiddleware, async (req, res) => {
+  try {
+    const managers = await client.franchiseManager.findMany({
+      select: { id: true, name: true },
+    });
+    res.status(200).json({ managers });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in get managers endpoint" });
+  }
+});
+
+adminRouter.post("/deleteManager", superAdminMiddleware, async (req, res) => {
+  try {
+    const { managerId } = req.body;
+    if (!managerId) {
+      res.status(400).json({ message: "managerId is required" });
+      return;
+    }
+    const manager = await client.franchiseManager.findUnique({
+      where: { id: managerId },
+    });
+    if (!manager) {
+      res.status(404).json({ message: "Manager not found" });
+      return;
+    }
+    await client.franchiseManager.delete({ where: { id: managerId } });
+    res.status(200).json({ message: "Manager deleted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in deleteManager endpoint" });
+  }
+});
 
 export default adminRouter;
