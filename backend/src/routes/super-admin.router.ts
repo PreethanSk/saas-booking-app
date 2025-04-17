@@ -351,4 +351,122 @@ adminRouter.post("/deleteManager", superAdminMiddleware, async (req, res) => {
   }
 });
 
+adminRouter.get("/getBranchesGrid", superAdminMiddleware, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const skip = (page - 1) * pageSize;
+    const name = req.query.name as string | undefined;
+
+    const where: any = {};
+    if (name) {
+      where.name = { contains: name, mode: "insensitive" };
+    }
+
+    const [branches, total] = await Promise.all([
+      client.branch.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { id: "desc" },
+      }),
+      client.branch.count({ where }),
+    ]);
+
+    res.status(200).json({
+      branches,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "server crashed in get branches grid endpoint" });
+  }
+});
+
+adminRouter.get("/getBranchDetail", superAdminMiddleware, async (req, res) => {
+  try {
+    const id = parseInt(req.query.id as string);
+    if (!id) {
+      res.status(403).json({ message: "please enter a branch id" });
+      return;
+    }
+    const findBranch = await client.branch.findUnique({ where: { id: id } });
+    if (!findBranch) {
+      res.status(403).json({ message: "this branch does not exist" });
+      return;
+    }
+    res.json({ branch: findBranch });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "server crashed in get branch detail endpoint" });
+  }
+});
+
+adminRouter.get("/getManagersGrid", superAdminMiddleware, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const skip = (page - 1) * pageSize;
+    const name = req.query.name as string | undefined;
+
+    const where: any = {};
+    if (name) {
+      where.name = { contains: name, mode: "insensitive" };
+    }
+
+    const [managers, total] = await Promise.all([
+      client.franchiseManager.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { id: "desc" },
+      }),
+      client.franchiseManager.count({ where }),
+    ]);
+
+    res.status(200).json({
+      managers,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "server crashed in get managers grid endpoint" });
+  }
+});
+
+adminRouter.get("/getMangerDetail", superAdminMiddleware, async (req, res) => {
+  try {
+    const id = parseInt(req.query.id as string);
+    if (!id) {
+      res.status(403).json({ message: "please enter a manager id" });
+      return;
+    }
+    const findManager = await client.franchiseManager.findUnique({
+      where: { id: id },
+    });
+    if (!findManager) {
+      res.status(403).json({ message: "theres no manger under this id" });
+      return;
+    }
+    res.json({ manager: findManager });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "Server crashed at get manager detail endpoint" });
+  }
+});
+
 export default adminRouter;
