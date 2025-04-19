@@ -1,10 +1,8 @@
 import express, { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import cors from "cors";
 import { PrismaClient } from "../../generated/prisma";
 import { JWT_KEY } from "../utils/config";
-import cookieParser from "cookie-parser";
 import { CREATOR_SECRET } from "../utils/config";
 import {
   superAdminSignUpSchema,
@@ -14,6 +12,7 @@ import {
   superAdminUpdateSchema,
   branchUpdateSchema,
   franchiseMangerCreateSchema,
+  adminForgotUsernameSchema,
 } from "../utils/zod";
 import { superAdminMiddleware } from "../middlewares/middleware";
 import crypto from "crypto";
@@ -178,6 +177,36 @@ adminRouter.put("/forgotPassword", async (req, res) => {
       .json({ message: "Server crash at superadmin forgot password" });
   }
 });
+
+adminRouter.post("/forgotUsername", async(req,res) => {
+  try{
+    const {email, password} = req.body;
+    
+    const zodParse = adminForgotUsernameSchema.safeParse(req.body);
+    if(!zodParse.success){
+      res.status(403).json({message:"zod error", errors: zodParse.error.errors});
+      return
+    }
+
+    const findUser = await client.superAdmin.findUnique({where: {email: email}})
+    if(!findUser){
+      res.status(403).json({message:"invalid email or password"});
+      return
+    }
+
+    const passwordDecrypt = await bcrypt.compare(password, findUser.password)
+    if(!passwordDecrypt){
+      res.status(403).json({message:"invalid email or password"});
+      return
+    }
+
+    res.json({username: findUser.username});
+  }
+  catch(error){
+    console.log(error);
+    res.status(500).json({message:"Server crashed in forgot username endpoint"})
+  }
+})
 
 adminRouter.post("/createBranch", superAdminMiddleware, async (req, res) => {
   try {
