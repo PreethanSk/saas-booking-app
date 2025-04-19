@@ -53,3 +53,31 @@ export async function commonMiddleware(req: Request, res: Response, next: NextFu
         res.status(500).json({message:"Server crashed in commonMiddleware"})
     }
 }
+
+export async function franchiseManagerMiddleware(req: Request, res: Response, next: NextFunction){
+    try{
+        const token = req.cookies.token;
+        if(!token){
+            res.status(403).json({message:"please enter a token"});
+            return;
+        }
+        const verify = jwt.verify(token, JWT_SECRET) as { id: string, role?: string };
+        
+        if(!verify){
+            res.status(403).json({message:"invalid token"});
+            return;
+        }
+        
+        if(verify.role !== "admin" && verify.role !== "super-admin"){
+            res.status(403).json({message:"you don't have access to this endpoint"});
+            return;
+        }
+        
+        (req as any).id = verify.id;
+        next();
+    }
+    catch(error){
+        console.log(error);
+        res.status(500).json({message:"server crashed in franchiseManager middleware"});
+    }
+}

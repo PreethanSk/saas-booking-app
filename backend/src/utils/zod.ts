@@ -98,6 +98,15 @@ export const adminForgotUsernameSchema = z.object({
   passworD: z.string()
 })
 
+// Zod schema for /updateUser endpoint (franchise manager)
+export const franchiseManagerUpdateSchema = z.object({
+  username: z.string().min(3).optional(),
+  email: z.string().email().optional(),
+  name: z.string().min(1).optional(),
+  phoneNumber: z.string().min(5).optional(),
+  picture: z.string().optional(),
+});
+
 //MANAGER
 export const createPasswordSchema = z.object({
   username: z.string(),
