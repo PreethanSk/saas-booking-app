@@ -23,7 +23,8 @@ export async function superAdminMiddleware(req: Request, res: Response, next: Ne
             return
         }
         
-        (req as any).id = verify.id
+        (req as any).id = verify.id;
+        (req as any).role = verify.role;
         next()
         }
     catch(error){
@@ -46,6 +47,8 @@ export async function commonMiddleware(req: Request, res: Response, next: NextFu
     }
     //@ts-ignore
     req.id = verify.id;
+    //@ts-ignore
+    req.role = verify.role
     next()
     }
     catch(e){
@@ -68,12 +71,13 @@ export async function franchiseManagerMiddleware(req: Request, res: Response, ne
             return;
         }
         
-        if(verify.role !== "admin" && verify.role !== "super-admin"){
+        if(verify.role !== "manager"){
             res.status(403).json({message:"you don't have access to this endpoint"});
             return;
         }
         
         (req as any).id = verify.id;
+        (req as any).role = verify.role
         next();
     }
     catch(error){

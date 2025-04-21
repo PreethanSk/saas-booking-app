@@ -95,7 +95,7 @@ export const franchiseMangerCreateSchema = z.object({
 
 export const adminForgotUsernameSchema = z.object({
   email: z.string().email(),
-  passworD: z.string()
+  password: z.string()
 })
 
 // Zod schema for /updateUser endpoint (franchise manager)
@@ -125,4 +125,11 @@ export const createPasswordSchema = z.object({
   .regex(/[^A-Za-z0-9]/, {
     message: "Password must contain at least one special character",
   }),
+})
+
+export const createStaffSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  username: z.string(),
+  branchId: z.number().optional()
 })

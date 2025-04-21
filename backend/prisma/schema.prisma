@@ -41,7 +41,7 @@ model FranchiseManager {
   password    String
   phoneNumber String?
   picture     String? // URL or path to manager picture
-  passwordKey String
+  passwordKey String @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -58,7 +58,7 @@ model Staff {
   username String @unique
   password    String
   picture     String? // URL or path to staff picture
-  passwordKey String
+  passwordKey String @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -125,7 +125,7 @@ model SuperAdmin {
   email     String   @unique
   password  String
   picture   String? // URL or path to superadmin picture
-  passwordKey String
+  passwordKey String @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

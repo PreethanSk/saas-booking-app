@@ -13,6 +13,7 @@ import {
   branchUpdateSchema,
   franchiseMangerCreateSchema,
   adminForgotUsernameSchema,
+  createStaffSchema,
 } from "../utils/zod";
 import { superAdminMiddleware } from "../middlewares/middleware";
 import crypto from "crypto";
@@ -178,35 +179,60 @@ adminRouter.put("/forgotPassword", async (req, res) => {
   }
 });
 
-adminRouter.post("/forgotUsername", async(req,res) => {
-  try{
-    const {email, password} = req.body;
-    
+adminRouter.post("/forgotUsername", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
     const zodParse = adminForgotUsernameSchema.safeParse(req.body);
-    if(!zodParse.success){
-      res.status(403).json({message:"zod error", errors: zodParse.error.errors});
-      return
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
     }
 
-    const findUser = await client.superAdmin.findUnique({where: {email: email}})
-    if(!findUser){
-      res.status(403).json({message:"invalid email or password"});
-      return
+    const findUser = await client.superAdmin.findUnique({
+      where: { email: email },
+    });
+    if (!findUser) {
+      res.status(403).json({ message: "invalid email or password" });
+      return;
     }
 
-    const passwordDecrypt = await bcrypt.compare(password, findUser.password)
-    if(!passwordDecrypt){
-      res.status(403).json({message:"invalid email or password"});
-      return
+    const passwordDecrypt = await bcrypt.compare(password, findUser.password);
+    if (!passwordDecrypt) {
+      res.status(403).json({ message: "invalid email or password" });
+      return;
     }
 
-    res.json({username: findUser.username});
-  }
-  catch(error){
+    res.json({ username: findUser.username });
+  } catch (error) {
     console.log(error);
-    res.status(500).json({message:"Server crashed in forgot username endpoint"})
+    res
+      .status(500)
+      .json({ message: "Server crashed in forgot username endpoint" });
   }
-})
+});
+
+adminRouter.get("/profile", superAdminMiddleware, async (req, res) => {
+  try {
+    //@ts-ignore
+    const id = req.id;
+    if (!id) {
+      res.status(403).json({ message: "invalid authentication" });
+      return;
+    }
+    const getUser = await client.superAdmin.findFirst({ where: { id: id } });
+    if (!getUser) {
+      res.status(403).json({ message: "user does not exist" });
+      return;
+    }
+    res.json({ userData: getUser });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ messaeg: "Server crashed in get profile endpoint" });
+  }
+});
 
 adminRouter.post("/createBranch", superAdminMiddleware, async (req, res) => {
   try {
@@ -332,7 +358,7 @@ adminRouter.post("/createManager", superAdminMiddleware, async (req, res) => {
 
     const userCheck = await client.franchiseManager.findFirst({
       where: {
-        OR: [{ username: username }, { email: email }, {branchId: branchId}],
+        OR: [{ username: username }, { email: email }, { branchId: branchId }],
       },
     });
     if (userCheck) {
@@ -510,5 +536,155 @@ adminRouter.get("/getManagerDetail", superAdminMiddleware, async (req, res) => {
       .json({ message: "Server crashed at get manager detail endpoint" });
   }
 });
+
+adminRouter.post("/createStaff", superAdminMiddleware, async (req, res) => {
+  try {
+    const { name, email, username, branchId } = req.body;
+    const zodParse = createStaffSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
+    }
+
+    const userCheck = await client.staff.findFirst({
+      where: { OR: [{ username }, { email }] },
+    });
+    if (userCheck) {
+      res.status(403).json({ message: "user already exists" });
+      return;
+    }
+    const branchCheck = await client.branch.findUnique({
+      where: { id: branchId },
+    });
+    if (!branchCheck) {
+      res.status(403).json({ message: "branch does not exist" });
+      return;
+    }
+    const passwordKey = crypto.randomBytes(8).toString("base64").slice(0, 10);
+    await client.staff.create({
+      data: {
+        name,
+        email,
+        username,
+        branchId,
+        passwordKey,
+        password: passwordKey,
+      },
+    });
+    res.json("staff created successfully")
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ messaage: "server crashed in create staff endpoint" });
+  }
+});
+
+//can do pagination, can filter with branchName, can filter with staff name, can filter with number of bookings, use branchNames dropdown for branchName.
+adminRouter.get("/getStaffGrid", superAdminMiddleware, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      pageSize = 10,
+      branchId,
+      minBookings,
+      maxBookings,
+      name,
+    } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(pageSize as string);
+    const take = parseInt(pageSize as string);
+
+    // Build where clause for staff
+    const where: any = {};
+    if (branchId) {
+      where.branchId = Number(branchId);
+    }
+    if (name) {
+      where.name = { contains: name as string, mode: "insensitive" };
+    }
+
+    // Get staff with bookings count
+    const staffWithBookings = await client.staff.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { id: "desc" },
+      include: {
+        _count: {
+          select: { bookings: true },
+        },
+      },
+    });
+
+    // Filter by bookings count range if provided
+    let filteredStaff = staffWithBookings;
+    const minB = minBookings !== undefined ? Number(minBookings) : undefined;
+    const maxB = maxBookings !== undefined ? Number(maxBookings) : undefined;
+    if (minB !== undefined || maxB !== undefined) {
+      filteredStaff = staffWithBookings.filter((staff) => {
+        const count = staff._count.bookings;
+        if (minB !== undefined && count < minB) return false;
+        if (maxB !== undefined && count > maxB) return false;
+        return true;
+      });
+    }
+
+    // Get total count for pagination (with filters except bookings count)
+    const total = await client.staff.count({ where });
+
+    res.status(200).json({
+      staff: filteredStaff.map((staff) => ({
+        ...staff,
+        bookingsCount: staff._count.bookings,
+      })),
+      total,
+      page: parseInt(page as string),
+      pageSize: parseInt(pageSize as string),
+      totalPages: Math.ceil(total / (parseInt(pageSize as string) || 1)),
+    });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(403)
+      .json({ message: "server crashed in get staff grid endpoint" });
+  }
+});
+
+//click from the grid api takes you here
+adminRouter.get("/getStaffDetail", superAdminMiddleware, async(req,res) => {
+  try{
+    const id = parseInt(req.query.id as string);
+    const idCheck = await client.staff.findUnique({where: {id: id}});
+    if(!idCheck){
+      res.status(403).json({message:"user does not exist"});
+      return
+    }
+    res.json({userDetails: idCheck})
+  }
+  catch(error){
+    console.log(error);
+    res.status(500).json({message:"Server crashed in get staff detail endpoint"})
+  }
+});
+
+
+adminRouter.delete("/deleteStaff",superAdminMiddleware, async(req,res) => {
+  try{
+    const {staffId} = req.body;
+    const userCheck = await client.staff.findUnique({where: {id: staffId}});
+    if(!userCheck){
+      res.status(403).json({message:"user does not exist"});
+      return
+    }
+    await client.staff.delete({where: {id: staffId} });
+    res.status(201).json({message:"user deleted successfully"})
+  }
+  catch(error){
+    console.log(error);
+    res.status(500).json({message:"Server crashed in delete staff endpoint"})
+  }
+})
 
 export default adminRouter;
