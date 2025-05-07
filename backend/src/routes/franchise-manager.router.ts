@@ -259,7 +259,7 @@ franchiseManagerRouter.post("/createStaff",franchiseManagerMiddleware,async (req
           branchId: branchId.branchId,
         },
       });
-      res.json({message:"Staff created"})
+      res.json({message:"Staff created", passwordKey: passwordKey})
     } catch (error) {
       console.log(error);
       res

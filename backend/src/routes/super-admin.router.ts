@@ -573,7 +573,7 @@ adminRouter.post("/createStaff", superAdminMiddleware, async (req, res) => {
         password: passwordKey,
       },
     });
-    res.json("staff created successfully")
+    res.json({message:"staff created ", passwordKey: passwordKey})
   } catch (error) {
     console.log(error);
     res

@@ -85,3 +85,7 @@ export async function franchiseManagerMiddleware(req: Request, res: Response, ne
         res.status(500).json({message:"server crashed in franchiseManager middleware"});
     }
 }
+
+export async function staffMiddleware(req: Request, res: Response, next: NextFunction){
+    
+}
