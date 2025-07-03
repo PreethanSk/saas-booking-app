@@ -26,7 +26,7 @@ staffRouter.post("/createPassword", async(req,res) => {
     }
     catch(error){
         console.log(error);
-        res.status(500).json({message:"server crashed in createPassword Staff endpoint"})
+        res.status(500).json({error:error,  message:"server crashed in createPassword Staff endpoint"})
     }
 })
 
@@ -47,7 +47,7 @@ staffRouter.post("/forgotUsername", async(req,res) => {
     }
     catch(error){
         console.log(error);
-        res.status(500).json({message:"server crash in staff forgotUsername endpoint"})
+        res.status(500).json({error:error,message:"server crash in staff forgotUsername endpoint"})
     }
 })
 
@@ -55,10 +55,38 @@ staffRouter.post("/forgotUsername", async(req,res) => {
 staffRouter.post("/signin", async(req,res) => {
     try{
         const {username, email, password} = req.body;
-        const 
+        if(!username && !email){
+            res.status(403).json({message:"enter your email or password please"});
+            return
+        }
+        const userCheck = await client.staff.findFirst({where: {OR: [{username}, {email}]}});
+        if(!userCheck){
+            res.status(403).json({message:"user does not exist"});
+            return
+        }
+
+        const passwordDecrypt = await bcrypt.compare(password, userCheck.password);
+        if(!passwordDecrypt){
+            res.status(403).json({message:"invalid password"});
+            return
+        }
+
+        const token = jwt.sign({id: userCheck.id}, JWT_SECRET);
+        res.cookie("token", token, {httpOnly: true});
+        res.json({message:"signed in successfully"});
     }
     catch(error){
         console.log(error);
-        res.status(500).json({message:"Server crashed in staff signin endpoint"})
+        res.status(500).json({error:error,message:"Server crashed in staff signin endpoint"})
     }
 })
+
+// staffRouter.get("/profile", async(req,res) => {
+//     try{
+//         //@ts-ignore
+
+//     }
+//     catch(error){
+//         res.status(500).json({error:error, message: "server crashed in get staff profile endpoint"})
+//     }
+// })

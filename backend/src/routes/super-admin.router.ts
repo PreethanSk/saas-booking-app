@@ -179,6 +179,7 @@ adminRouter.put("/forgotPassword", async (req, res) => {
   }
 });
 
+//ADD EMAIL OTP VERIFICATION
 adminRouter.post("/forgotUsername", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -582,7 +583,7 @@ adminRouter.post("/createStaff", superAdminMiddleware, async (req, res) => {
   }
 });
 
-//can do pagination, can filter with branchName, can filter with staff name, can filter with number of bookings, use branchNames dropdown for branchName.
+//can do pagination, can filter with branchName, can filter with staff name, can sort with number of bookings, use branchNames dropdown for branchName.
 adminRouter.get("/getStaffGrid", superAdminMiddleware, async (req, res) => {
   try {
     const {
@@ -656,8 +657,13 @@ adminRouter.get("/getStaffGrid", superAdminMiddleware, async (req, res) => {
 adminRouter.get("/getStaffDetail", superAdminMiddleware, async(req,res) => {
   try{
     const id = parseInt(req.query.id as string);
+    if(!id || isNaN(id)){
+      res.status(403).json({message:"enter a valid id"});
+      return
+    }
     const idCheck = await client.staff.findUnique({where: {id: id}});
     if(!idCheck){
+
       res.status(403).json({message:"user does not exist"});
       return
     }
@@ -673,6 +679,10 @@ adminRouter.get("/getStaffDetail", superAdminMiddleware, async(req,res) => {
 adminRouter.delete("/deleteStaff",superAdminMiddleware, async(req,res) => {
   try{
     const {staffId} = req.body;
+    if(!staffId){
+      res.status(403).json({message:"enter a staffId"});
+      return
+    }
     const userCheck = await client.staff.findUnique({where: {id: staffId}});
     if(!userCheck){
       res.status(403).json({message:"user does not exist"});
@@ -686,5 +696,132 @@ adminRouter.delete("/deleteStaff",superAdminMiddleware, async(req,res) => {
     res.status(500).json({message:"Server crashed in delete staff endpoint"})
   }
 })
+
+
+// add status wise numbers to response, add status to query for filter.
+adminRouter.get("/getBookingsGrid", superAdminMiddleware, async(req,res) => {
+  try{
+    const {branchId, fromDate, toDate, page = 1, pageSize = 10 } = req.query
+    const skip = (parseInt(page as string) - 1) * parseInt(pageSize as string);
+    const take = parseInt(pageSize as string);
+    
+    // Build where clause for bookings
+    const where: any = {};
+    
+    // Add branchId filter if provided
+    if (branchId) {
+      const branchID = parseInt(branchId as string);
+      if (isNaN(branchID)) {
+        res.status(400).json({message:"Invalid branchId format"});
+        return;
+      }
+      where.branchId = branchID;
+    }
+    
+    // Add date range filters for startTime if provided
+    if (fromDate || toDate) {
+      where.startTime = {};
+      
+      if (fromDate) {
+        const fromDateObj = new Date(fromDate as string);
+        if (isNaN(fromDateObj.getTime())) {
+          res.status(400).json({message:"Invalid fromDate format. Use YYYY-MM-DD"});
+          return;
+        }
+        where.startTime.gte = fromDateObj;
+      }
+      
+      if (toDate) {
+        const toDateObj = new Date(toDate as string);
+        if (isNaN(toDateObj.getTime())) {
+          res.status(400).json({message:"Invalid toDate format. Use YYYY-MM-DD"});
+          return;
+        }
+        // Set to end of day for toDate
+        toDateObj.setHours(23, 59, 59, 999);
+        where.startTime.lte = toDateObj;
+      }
+    }
+    
+    const bookings = await client.booking.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { id: "desc" }
+    })
+    
+    const total = await client.booking.count({where})
+    
+    res.json({
+      bookings, 
+      total, 
+      page: parseInt(page as string), 
+      pageSize: parseInt(pageSize as string), 
+      totalPages: Math.ceil(total/(parseInt(pageSize as string) || 1)) 
+    })
+  }
+  catch(error){
+    console.log(error);
+    res.status(500).json({message:"server crashed in get bookings grid", error: error});
+  }
+})
+
+adminRouter.put("/updateBooking", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id, date, startTime, endTime, delivery, status, productId, branchId, staffId, userId} = req.body;
+    if(!id){
+      res.status(403).json({message:"please enter an id"});
+      return
+    }
+    const findBooking = await client.booking.findUnique({where: {id}})
+    if(!findBooking){
+      res.status(403).json({message:"booking does not exist"});
+      return
+    }
+    const updateData: any = {};
+    if (date !== undefined) updateData.date = date;
+    if (startTime !== undefined) updateData.startTime = startTime;
+    if (endTime !== undefined) updateData.endTime = endTime;
+    if (delivery !== undefined) updateData.delivery = delivery;
+    if (status !== undefined) updateData.status = status;
+    if (productId !== undefined) updateData.productId = productId;
+    if (branchId !== undefined) updateData.branchId = branchId;
+    if (staffId !== undefined) updateData.staffId = staffId;
+    if (userId !== undefined) updateData.userId = userId;
+    
+    await client.booking.update({where: {id: id}, data: updateData});
+    res.json({messagE:"updated successfully"});
+    
+  } 
+  catch(error){
+    console.log(error)
+    res.status(500).json({error: error,message: "server crash in update booking endpoint"})
+  } 
+})
+
+
+
+adminRouter.get("/getBookingDetail", superAdminMiddleware, async(req,res) => {
+try{
+  const {id} = req.query;
+  if(!id){
+    res.status(403).json({message:"enter a booking id"});
+    return
+  }
+  const findId = await client.booking.findUnique({where: {id: parseInt(id as string)}});
+  if(!findId){
+    res.status(403).json({message: "this booking does not exist"});
+    return
+  }
+  res.json({detail: findId})
+}
+catch(error){
+  console.log(error);
+  res.status(500).json({error: error, messagE:"server crashed in getBookingDetail"})
+}
+})
+
+
+// do product endpoints
 
 export default adminRouter;
