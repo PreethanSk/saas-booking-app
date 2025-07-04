@@ -13,6 +13,7 @@ A full-stack SaaS platform built for **service-based franchises** — like salon
 - **Customer CRM** — Store customer data and history
 - **Inventory (Optional)** — Track per-branch product usage and alerts
 - **WhatsApp Integration** — Send reminders, confirmations, and cancellations
+-   Customers can book services, manage bookings, and receive updates via a WhatsApp Bo
 - **Payment Integration** — Razorpay for online payments + manual entries
 - **Dashboard & Reports** — Revenue analytics, staff performance, customer retention
 
