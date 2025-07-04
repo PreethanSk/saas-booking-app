@@ -397,4 +397,7 @@ franchiseManagerRouter.delete("/deleteStaff", franchiseManagerMiddleware, async(
   }
 })
 
+
+// product management for Manager
+// booking management for manager
 export default franchiseManagerRouter;

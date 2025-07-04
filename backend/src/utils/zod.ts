@@ -72,7 +72,8 @@ export const branchCreateSchema = z.object({
   city: z.string(),
   state: z.string(),
   country: z.string(),
-  picture: z.string().optional()
+  picture: z.string().optional(),
+  Description: z.string().optional()
 })
 
 export const branchUpdateSchema = z.object({

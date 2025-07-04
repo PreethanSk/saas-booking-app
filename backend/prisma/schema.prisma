@@ -22,7 +22,9 @@ model Branch {
   city String
   state String
   country String
+  Description String?
   picture   String? // URL or path to branch picture
+  isActive Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -42,6 +44,7 @@ model FranchiseManager {
   phoneNumber String?
   picture     String? // URL or path to manager picture
   passwordKey String @unique
+  isActive Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -59,6 +62,7 @@ model Staff {
   password    String
   picture     String? // URL or path to staff picture
   passwordKey String @unique
+  isActive Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -74,6 +78,8 @@ model Product {
   price     Float
   duration  Int?
   picture   String? // URL or path to product picture
+  isActive Boolean @default(true)
+  description String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -90,6 +96,8 @@ model Booking {
   endTime   Int?
   delivery  DateTime?
   status    BookingStatus
+  description String?
+  isActive Boolean @default(true)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -110,6 +118,7 @@ model Booking {
 model User {
   id          Int      @id @default(autoincrement())
   phoneNumber String   @unique
+  name String?
   waChatId    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

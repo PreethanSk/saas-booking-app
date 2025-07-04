@@ -231,13 +231,13 @@ adminRouter.get("/profile", superAdminMiddleware, async (req, res) => {
     res.json({ userData: getUser });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ messaeg: "Server crashed in get profile endpoint" });
+    res.status(500).json({ message: "Server crashed in get profile endpoint" });
   }
 });
 
 adminRouter.post("/createBranch", superAdminMiddleware, async (req, res) => {
   try {
-    const { name, address, pincode, city, state, country, picture } = req.body;
+    const { name, address, pincode, city, state, country, picture, Description } = req.body;
 
     const zodParse = branchCreateSchema.safeParse(req.body);
     if (!zodParse.success) {
@@ -255,7 +255,7 @@ adminRouter.post("/createBranch", superAdminMiddleware, async (req, res) => {
       return;
     }
     await client.branch.create({
-      data: { name, address, pincode, city, state, country, picture },
+      data: { name, address, pincode, city, state, country, picture, Description },
     });
     res.status(201).json({ message: "branch created successfully" });
   } catch (error) {
@@ -338,84 +338,6 @@ adminRouter.get("/branchNames", superAdminMiddleware, async (req, res) => {
   }
 });
 
-// manager will later give input for password, name, ph number etc
-adminRouter.post("/createManager", superAdminMiddleware, async (req, res) => {
-  try {
-    const { email, username, branchId } = req.body;
-    const zodParse = franchiseMangerCreateSchema.safeParse(req.body);
-    if (!zodParse.success) {
-      res
-        .status(403)
-        .json({ message: "zod error", errors: zodParse.error.errors });
-      return;
-    }
-
-    // Check if branch exists before creating manager
-    const branch = await client.branch.findUnique({ where: { id: branchId } });
-    if (!branch) {
-      res.status(400).json({ message: "Branch does not exist" });
-      return;
-    }
-
-    const userCheck = await client.franchiseManager.findFirst({
-      where: {
-        OR: [{ username: username }, { email: email }, { branchId: branchId }],
-      },
-    });
-    if (userCheck) {
-      res.status(403).json({ message: "user already exists" });
-      return;
-    }
-
-    const key = crypto.randomBytes(8).toString("base64").slice(0, 10);
-    await client.franchiseManager.create({
-      data: { email, username, passwordKey: key, password: key, branchId },
-    });
-
-    res.status(201).json({ message: "manager created!", key: key });
-  } catch (error) {
-    console.log(error);
-    res
-      .status(500)
-      .json({ messagE: "server crash in manager create endpoint" });
-  }
-});
-
-//for dropdown menu
-adminRouter.get("/managerNames", superAdminMiddleware, async (req, res) => {
-  try {
-    const managers = await client.franchiseManager.findMany({
-      select: { id: true, name: true },
-    });
-    res.status(200).json({ managers });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Server crash in get managers endpoint" });
-  }
-});
-
-adminRouter.delete("/deleteManager", superAdminMiddleware, async (req, res) => {
-  try {
-    const { managerId } = req.body;
-    if (!managerId) {
-      res.status(400).json({ message: "managerId is required" });
-      return;
-    }
-    const manager = await client.franchiseManager.findUnique({
-      where: { id: managerId },
-    });
-    if (!manager) {
-      res.status(404).json({ message: "Manager not found" });
-      return;
-    }
-    await client.franchiseManager.delete({ where: { id: managerId } });
-    res.status(200).json({ message: "Manager deleted successfully" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Server crash in deleteManager endpoint" });
-  }
-});
-
 // can search for individual names too allows half ass inputs, add button to view in detail
 adminRouter.get("/getBranchesGrid", superAdminMiddleware, async (req, res) => {
   try {
@@ -476,6 +398,86 @@ adminRouter.get("/getBranchDetail", superAdminMiddleware, async (req, res) => {
   }
 });
 
+// manager will later give input for password, name, ph number etc
+adminRouter.post("/createManager", superAdminMiddleware, async (req, res) => {
+  try {
+    const { email, username, branchId } = req.body;
+    const zodParse = franchiseMangerCreateSchema.safeParse(req.body);
+    if (!zodParse.success) {
+      res
+        .status(403)
+        .json({ message: "zod error", errors: zodParse.error.errors });
+      return;
+    }
+
+    // Check if branch exists before creating manager
+    const branch = await client.branch.findUnique({ where: { id: branchId } });
+    if (!branch) {
+      res.status(400).json({ message: "Branch does not exist" });
+      return;
+    }
+
+    const userCheck = await client.franchiseManager.findFirst({
+      where: {
+        OR: [{ username: username }, { email: email }, { branchId: branchId }],
+      },
+    });
+    if (userCheck) {
+      res.status(403).json({ message: "user already exists" });
+      return;
+    }
+
+    const key = crypto.randomBytes(8).toString("base64").slice(0, 10);
+    await client.franchiseManager.create({
+      data: { email, username, passwordKey: key, password: key, branchId },
+    });
+
+    res.status(201).json({ message: "manager created!", key: key });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "server crash in manager create endpoint" });
+  }
+});
+
+//for dropdown menu
+adminRouter.get("/managerNames", superAdminMiddleware, async (req, res) => {
+  try {
+    const managers = await client.franchiseManager.findMany({
+      select: { id: true, name: true },
+    });
+    res.status(200).json({ managers });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in get managers endpoint" });
+  }
+});
+
+adminRouter.delete("/deleteManager", superAdminMiddleware, async (req, res) => {
+  try {
+    const { managerId } = req.body;
+    if (!managerId) {
+      res.status(400).json({ message: "managerId is required" });
+      return;
+    }
+    const manager = await client.franchiseManager.findUnique({
+      where: { id: managerId },
+    });
+    if (!manager) {
+      res.status(404).json({ message: "Manager not found" });
+      return;
+    }
+    await client.franchiseManager.delete({ where: { id: managerId } });
+    res.status(200).json({ message: "Manager deleted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server crash in deleteManager endpoint" });
+  }
+});
+
+
+
 // can search for individual names too allows half ass inputs, add button to view in detail
 adminRouter.get("/getManagersGrid", superAdminMiddleware, async (req, res) => {
   try {
@@ -526,7 +528,7 @@ adminRouter.get("/getManagerDetail", superAdminMiddleware, async (req, res) => {
       where: { id: id },
     });
     if (!findManager) {
-      res.status(403).json({ message: "theres no manger under this id" });
+      res.status(403).json({ message: "there's no manager under this id" });
       return;
     }
     res.json({ manager: findManager });
@@ -579,7 +581,7 @@ adminRouter.post("/createStaff", superAdminMiddleware, async (req, res) => {
     console.log(error);
     res
       .status(500)
-      .json({ messaage: "server crashed in create staff endpoint" });
+      .json({ message: "server crashed in create staff endpoint" });
   }
 });
 
@@ -698,6 +700,30 @@ adminRouter.delete("/deleteStaff",superAdminMiddleware, async(req,res) => {
 })
 
 
+adminRouter.post("/createBooking", superAdminMiddleware, async(req,res) => {
+  try{
+    const {date, startTime, endTime, delivery, status, userId, productId, branchId, staffId, description} = req.body;
+    const createData: any = {};
+    if(date !== undefined) createData.date = date;
+    if(startTime !== undefined) createData.startTime = startTime;
+    if(endTime !== undefined) createData.endTime = endTime;
+    if(delivery !== undefined) createData.delivery = delivery;
+    if(status !== undefined) createData.status = status;
+    if(userId !== undefined) createData.userId = userId;
+    if(productId !== undefined) createData.productId = productId;
+    if(branchId !== undefined) createData.branchId = branchId;
+    if(staffId !== undefined) createData.staffId = staffId;
+    if(description !== undefined) createData.description = description;
+
+    await client.booking.create({data: createData});
+    res.json({message:"booking created successfully!"})
+  }
+  catch(error){
+    res.status(500).json({message:"Server crashed in create booking endpoint", error: error});
+    console.log(error)
+  }
+} )
+
 // add status wise numbers to response, add status to query for filter.
 adminRouter.get("/getBookingsGrid", superAdminMiddleware, async(req,res) => {
   try{
@@ -768,7 +794,7 @@ adminRouter.get("/getBookingsGrid", superAdminMiddleware, async(req,res) => {
 
 adminRouter.put("/updateBooking", superAdminMiddleware, async(req,res) => {
   try{
-    const {id, date, startTime, endTime, delivery, status, productId, branchId, staffId, userId} = req.body;
+    const {id, date, startTime, endTime, delivery, status, productId, branchId, staffId, userId, description, isActive } = req.body;
     if(!id){
       res.status(403).json({message:"please enter an id"});
       return
@@ -788,9 +814,11 @@ adminRouter.put("/updateBooking", superAdminMiddleware, async(req,res) => {
     if (branchId !== undefined) updateData.branchId = branchId;
     if (staffId !== undefined) updateData.staffId = staffId;
     if (userId !== undefined) updateData.userId = userId;
+    if(description !== undefined) updateData.description = description;
+    if(isActive !== undefined) updateData.isActive = isActive
     
     await client.booking.update({where: {id: id}, data: updateData});
-    res.json({messagE:"updated successfully"});
+    res.json({message:"updated successfully"});
     
   } 
   catch(error){
@@ -817,11 +845,259 @@ try{
 }
 catch(error){
   console.log(error);
-  res.status(500).json({error: error, messagE:"server crashed in getBookingDetail"})
+  res.status(500).json({error: error, message:"server crashed in getBookingDetail"})
 }
 })
 
+adminRouter.delete("/deleteBooking", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id} = req.query;
+    if(!id){
+      res.status(403).json({message:"please enter an id"});
+      return
+    }
+    const findBooking = await client.booking.findUnique({where: {id: parseInt(id as string)}});
+    if(!findBooking){
+      res.status(403).json({message:"booking does not exist"});
+      return
+    }
+    await client.booking.delete({where: {id: parseInt(id as string)}});
+    res.json({message:"booking deleted successfully!"})
+  }
+  catch(error){
+    res.status(500).json({message:"server crash in delete booking endpoint",error: error});
+    console.log(error)
+  }
+})
+
+// userManagement
+
+adminRouter.get("/getUserGrid", superAdminMiddleware, async(req,res) => {
+  try{
+    const {page = 1, pageSize = 10, phoneNumber, isActive, name} = req.query;
+    const skip = (parseInt(page as string) - 1 ) * parseInt(pageSize as string);
+    const take = parseInt(pageSize as string);
+
+    const where : any = {};
+    if(phoneNumber){
+      where.phoneNumber = {contains: phoneNumber as string, mode: "insensitive"};
+    }
+    if(name){
+      where.name = {contains: name as string, mode: "insensitive"};
+    }
+    if(isActive !== undefined){
+      where.isActive = isActive === 'true';
+    }
+
+    const result = await client.user.findMany({
+      where, 
+      skip,
+      take,
+      orderBy: {id: "desc"},
+      include: {
+        _count: {
+          select: {bookings: true}
+        }
+      }
+    })
+
+    const total = await client.user.count({where});
+
+    res.json({
+      users: result, 
+      total, 
+      page: parseInt(page as string), 
+      pageSize: parseInt(pageSize as string), 
+      totalPages: Math.ceil(total/(parseInt(pageSize as string) || 1))
+    });
+
+  }
+  catch(error){
+    res.status(500).json({message:"server crashed in get user grid endpoint", error: error});
+    console.log(error)
+  }
+})
+
+adminRouter.get("/getUserDetail", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id} = req.query;
+    if(!id){
+      res.status(403).json({message:"please enter an id"});
+      return
+    }
+    const findUser = await client.user.findUnique({where: {id: parseInt(id as string)}});
+    if(!findUser){
+      res.status(403).json({message: "this user does not exist"});
+      return
+    }
+    res.json({data: findUser})
+  }
+  catch(error){
+    res.status(500).json({message:"server crash in get user detail"});
+    console.log(error)
+  }
+})
+
+
+adminRouter.delete("/deleteUser", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id} = req.query;
+    if(!id){
+      res.status(403).json({message:"please enter an id"});
+      return
+    }
+
+    const idCheck = await client.user.findUnique({where: {id: parseInt(id as string)}});
+    if(!idCheck){
+      res.status(403).json({message:"user does not exist"});
+      return
+    }
+    await client.user.delete({where: {id: parseInt(id as string)}})
+    res.json({message:"user deleted successfully"})
+  }
+  catch(error){
+    console.log(error);
+    res.status(500).json({message:"server crashed in delete user endpoint"})
+  }
+})
 
 // do product endpoints
+
+adminRouter.post("/createProduct", superAdminMiddleware, async(req,res) => {
+  try{
+    const {name,price, duration, picture, branchId, description} = req.body;
+  
+      const where : any = {};
+      if(name !== undefined) where.name = name;
+      if(price !== undefined) where.price = price;
+      if(duration !== undefined) where.duration = duration;
+      if(picture !== undefined) where.picture = picture;
+      if(branchId !== undefined) where.branchId = branchId;
+      if(description !== undefined) where.description = description;
+
+      await client.product.create({data: where});
+      res.json({message:"product created successfully"})
+  }
+  catch(error){
+    res.status(500).json({message:"server crashed in create product endpoint"});
+    console.log(error)
+  }
+})
+
+adminRouter.put("/updateProduct", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id, name, price, duration, picture, branchId, description} = req.body;
+    if(!id){
+      res.status(403).json({message:"id is required to update"});
+      return
+    }
+    
+    const where : any = {};
+    if(name !== undefined) where.name = name;
+    if(price !== undefined) where.price = price;
+    if(duration !== undefined) where.duration = duration;
+    if(picture !== undefined) where.picture = picture;
+    if(branchId !== undefined) where.branchId = branchId;
+    if(description !== undefined) where.description = description
+
+    const findId = await client.product.findUnique({where: {id}});
+    if(!findId){
+      res.status(403).json({message:"this product does not exist"});
+      return
+    }
+
+    await client.product.update({where: {id}, data: where});
+
+    res.json({message:"product updated successfully"});
+  }
+  catch(error){
+    res.status(500).json({message:"server crashed in update product endpoint"});
+    console.log(error)
+  }
+})
+
+
+adminRouter.get("/getProductGrid", superAdminMiddleware, async(req,res) => {
+  try{
+    const {page = 1, pageSize = 10, branchId, name} = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(pageSize as string);
+    const take = parseInt(pageSize as string);
+
+    const where: any = {};
+    if (branchId) {
+      where.branchId = Number(branchId);
+    }
+    if (name) {
+      where.name = { contains: name as string, mode: "insensitive" };
+    }
+
+    const [products, total] = await Promise.all([
+      client.product.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { id: "desc" },
+      }),
+      client.product.count({ where }),
+    ]);
+
+    res.status(200).json({
+      products,
+      total,
+      page: parseInt(page as string),
+      pageSize: parseInt(pageSize as string),
+      totalPages: Math.ceil(total / (parseInt(pageSize as string) || 1)),
+    });
+  }
+  catch(error){
+    console.log(error);
+    res.status(500).json({message:"Server crashed in get products grid endpoint"});
+  }
+})
+
+adminRouter.get("/getProductDetail", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id} = req.query;
+    if(!id){
+      res.status(403).json({message:"please enter a valid id"});
+      return
+    }
+    const findId = await client.product.findUnique({where: {id: parseInt(id as string )}});
+    if(!findId){
+      res.status(403).json({message:"this product id is invalid"});
+      return
+    }
+
+    res.json({data: findId});
+  }
+  catch(error){
+    res.status(500).json({message:"server crashed in get product detail"});
+    console.log(error)
+  }
+})
+
+adminRouter.delete("/deleteProduct", superAdminMiddleware, async(req,res) => {
+  try{
+    const {id} = req.query;
+    if(!id){
+      res.status(403).json({message:"invalid id"});
+      return
+    }
+
+    const findId = await client.product.findUnique({where: {id: parseInt(id as string)}});
+    if(!findId){
+      res.status(403).json({message:"this product id is invalid"});
+      return
+    }
+
+    await client.product.delete({where: {id: parseInt(id as string)}});
+
+    res.json({message: "product deleted successfully"});
+  }
+  catch(error){
+    res.status(500).json({message:"Server crashed in delete product endpoint"});
+    console.log(error)
+  }
+})
 
 export default adminRouter;
